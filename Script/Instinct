@@ -1,0 +1,143 @@
+-- // ⚡ Instinct Saitama Dash Toggle (Draggable PC+Mobile + Working Chat)
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local UserInputService = game:GetService("UserInputService")
+
+local player = Players.LocalPlayer
+local character = player.Character or player.CharacterAdded:Wait()
+local humanoidRoot = character:WaitForChild("HumanoidRootPart")
+
+local toggleDash = false
+local dashSpeed = 300 -- studs per second
+local dashInterval = 0.1 -- time between auto-movement
+local directions = {Vector3.new(1,0,0), Vector3.new(-1,0,0)} -- left/right
+local currentDir = 1
+
+local chatLines = {
+    "If you want to fight with me, then...",
+    "CATCH UP WITH ME!",
+    "You can't even touch me!",
+    "Try to keep up!",
+    "Is that all you've got?"
+}
+
+-- GUI
+local ScreenGui = Instance.new("ScreenGui")
+ScreenGui.Parent = player:WaitForChild("PlayerGui")
+ScreenGui.ResetOnSpawn = false
+
+local Frame = Instance.new("Frame")
+Frame.Size = UDim2.new(0, 250, 0, 120)
+Frame.Position = UDim2.new(0.5, -125, 0, 50)
+Frame.BackgroundColor3 = Color3.fromRGB(40,40,40)
+Frame.BackgroundTransparency = 0.2
+Frame.BorderSizePixel = 0
+Frame.Parent = ScreenGui
+Frame.ClipsDescendants = true
+
+-- Gradient
+local UIGradient = Instance.new("UIGradient")
+UIGradient.Color = ColorSequence.new{
+    ColorSequenceKeypoint.new(0, Color3.fromRGB(255,100,50)),
+    ColorSequenceKeypoint.new(1, Color3.fromRGB(255,0,0))
+}
+UIGradient.Rotation = 45
+UIGradient.Parent = Frame
+
+-- Rounded corners
+local UICorner = Instance.new("UICorner")
+UICorner.CornerRadius = UDim.new(0,15)
+UICorner.Parent = Frame
+
+-- Title
+local Title = Instance.new("TextLabel")
+Title.Text = "⚡ Saitama Dash"
+Title.Size = UDim2.new(1, -20, 0, 30)
+Title.Position = UDim2.new(0, 10, 0, 10)
+Title.BackgroundTransparency = 1
+Title.TextScaled = true
+Title.TextColor3 = Color3.fromRGB(255,255,255)
+Title.Font = Enum.Font.SourceSansBold
+Title.Parent = Frame
+
+-- Description
+local Desc = Instance.new("TextLabel")
+Desc.Text = "Toggle insane dash speed!"
+Desc.Size = UDim2.new(1, -20, 0, 20)
+Desc.Position = UDim2.new(0,10,0,40)
+Desc.BackgroundTransparency = 1
+Desc.TextScaled = true
+Desc.TextColor3 = Color3.fromRGB(200,200,200)
+Desc.Font = Enum.Font.SourceSans
+Desc.Parent = Frame
+
+-- Toggle Button
+local ToggleButton = Instance.new("TextButton")
+ToggleButton.Size = UDim2.new(0, 150, 0, 40)
+ToggleButton.Position = UDim2.new(0.5, -75, 0, 70)
+ToggleButton.Text = "Power Dash OFF"
+ToggleButton.TextScaled = true
+ToggleButton.Font = Enum.Font.SourceSansBold
+ToggleButton.BackgroundColor3 = Color3.fromRGB(255,0,0)
+ToggleButton.Parent = Frame
+local btnCorner = Instance.new("UICorner")
+btnCorner.CornerRadius = UDim.new(0,10)
+btnCorner.Parent = ToggleButton
+
+-- Draggable PC + Mobile
+local dragging = false
+local dragStart = nil
+local startPos = nil
+
+local function startDrag(input)
+    dragging = true
+    dragStart = input.Position
+    startPos = Frame.Position
+    input.Changed:Connect(function()
+        if input.UserInputState == Enum.UserInputState.End then
+            dragging = false
+        end
+    end)
+end
+
+Frame.InputBegan:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+        startDrag(input)
+    end
+end)
+
+Frame.InputChanged:Connect(function(input)
+    if dragging and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
+        local delta = input.Position - dragStart
+        Frame.Position = UDim2.new(
+            startPos.X.Scale, startPos.X.Offset + delta.X,
+            startPos.Y.Scale, startPos.Y.Offset + delta.Y
+        )
+    end
+end)
+
+-- Toggle dash & chat
+ToggleButton.MouseButton1Click:Connect(function()
+    toggleDash = not toggleDash
+    ToggleButton.Text = toggleDash and "Power Dash ON" or "Power Dash OFF"
+    ToggleButton.BackgroundColor3 = toggleDash and Color3.fromRGB(0,255,0) or Color3.fromRGB(255,0,0)
+
+    -- Send chat
+    local SayMessageRequest = game:GetService("ReplicatedStorage")
+        :WaitForChild("DefaultChatSystemChatEvents")
+        :WaitForChild("SayMessageRequest")
+    local line = chatLines[math.random(1,#chatLines)]
+    SayMessageRequest:FireServer(line, "All")
+end)
+
+-- Auto dash loop
+spawn(function()
+    while true do
+        wait(dashInterval)
+        if toggleDash and humanoidRoot then
+            humanoidRoot.CFrame = humanoidRoot.CFrame + directions[currentDir] * dashSpeed * dashInterval
+            currentDir = currentDir % #directions + 1
+        end
+    end
+end)
